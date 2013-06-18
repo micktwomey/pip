@@ -19,21 +19,21 @@ from pip.pep425tags import supported_tags
 from pip.util import call_subprocess, normalize_path, make_path_relative
 
 wheel_ext = '.whl'
-distribute_requirement = pkg_resources.Requirement.parse("distribute>=0.6.34")
+setuptools_requirement = pkg_resources.Requirement.parse("setuptools>=0.7.0")
 
-def wheel_distribute_support(distribute_req=distribute_requirement):
+def wheel_setuptools_support(setuptools_req=setuptools_requirement):
     """
-    Return True if we have a distribute that supports wheel.
+    Return True if we have a setuptools that supports wheel.
 
-    distribute_req: a pkg_resources.Requirement for distribute
+    setuptools_req: a pkg_resources.Requirement for setuptools
     """
     try:
-        installed_dist = pkg_resources.get_distribution('distribute')
-        supported = installed_dist in distribute_req
+        installed_dist = pkg_resources.get_distribution('setuptools')
+        supported = installed_dist in setuptools_req
     except pkg_resources.DistributionNotFound:
         supported = False
     if not supported:
-        logger.warn("%s is required for wheel installs.", distribute_req)
+        logger.warn("%s is required for wheel installs.", setuptools_req)
     return supported
 
 
