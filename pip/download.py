@@ -23,6 +23,7 @@ from pip.util import (splitext, rmtree, format_size, display_path,
 from pip.vcs import vcs
 from pip.log import logger
 from pip.locations import default_cert_path
+from pip.s3 import get_url_for_s3_path
 
 __all__ = ['get_file_content', 'urlopen',
            'is_url', 'url_to_path', 'path_to_url', 'path_to_url2',
@@ -84,6 +85,9 @@ def get_file_content(url, comes_from=None):
             url = path
         else:
             ## FIXME: catch some errors
+            if scheme == "s3":
+                print url
+                url = get_url_for_s3_path(url)
             resp = urlopen(url)
             encoding = get_http_message_param(resp.headers, 'charset', 'utf-8')
             return geturl(resp), resp.read().decode(encoding)
@@ -98,7 +102,7 @@ def get_file_content(url, comes_from=None):
     return url, content
 
 
-_scheme_re = re.compile(r'^(http|https|file):', re.I)
+_scheme_re = re.compile(r'^(http|https|file|s3):', re.I)
 _url_slash_drive_re = re.compile(r'/*([a-z])\|', re.I)
 
 class VerifiedHTTPSConnection(httplib.HTTPSConnection):
@@ -637,28 +641,7 @@ def _get_response_from_url(target_url, link):
     # If the user specifies a S3 url generate a termporary HTTP url and
     # pass that onto the HTTP download code as normal.
     if target_url.startswith("s3:"):
-        try:
-            import boto
-        except ImportError, e:
-            logger.fatal("Unable to import boto, boto is needed for S3:// URL suppport for %s: %s. Try pip install boto to install it." % (link, e))
-            raise
-        scheme, bucketname, path, query, fragment = urlparse.urlsplit(target_url)
-        try:
-            # Authentication is deferred to boto defaults (environment
-            # variables, ~/.boto, /etc/boto or IAM roles on AWS
-            # instances).
-            s3 = boto.connect_s3()
-            bucket = s3.get_bucket(bucketname)
-            key = bucket.get_key(path)
-            new_target_url = key.generate_url(60)  # 60 second timeout
-        except boto.exception.NoAuthHandlerFound, e:
-            logger.fatal("Failed to authenticate. Please configure a source of credentials according to http://boto.readthedocs.org/en/latest/boto_config_tut.html#credentials. %s" % e)
-            raise
-        except boto.exception.S3ResponseError, e:
-            logger.fatal("Unable to fetch key for %s: %s" % (link, e))
-            raise
-        logger.info("Using {!r} for download of {!r}".format(new_target_url, target_url))
-        target_url = new_target_url
+        target_url = get_url_for_s3_path(target_url)
     try:
         resp = urlopen(target_url)
     except urllib2.HTTPError:

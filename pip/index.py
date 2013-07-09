@@ -32,6 +32,7 @@ from pip.download import urlopen, path_to_url2, url_to_path, geturl, Urllib2Head
 from pip.wheel import Wheel, wheel_ext, wheel_setuptools_support, setuptools_requirement
 from pip.pep425tags import supported_tags, supported_tags_noarch, get_platform
 from pip.vendor import html5lib
+from pip.s3 import list_s3_path
 
 __all__ = ['PackageFinder']
 
@@ -665,9 +666,13 @@ class HTMLPage(object):
                 url = urlparse.urljoin(url, 'index.html')
                 logger.debug(' file: URL is directory, getting %s' % url)
 
-            resp = urlopen(url)
+            if scheme == "s3":
+                resp = list_s3_path(url)
+                real_url = url
+            else:
+                resp = urlopen(url)
+                real_url = geturl(resp)
 
-            real_url = geturl(resp)
             headers = resp.info()
             contents = resp.read()
             encoding = headers.get('Content-Encoding', None)
@@ -733,7 +738,7 @@ class HTMLPage(object):
     def _get_content_type(url):
         """Get the Content-Type of the given url, using a HEAD request"""
         scheme, netloc, path, query, fragment = urlparse.urlsplit(url)
-        if not scheme in ('http', 'https', 'ftp', 'ftps'):
+        if not scheme in ('http', 'https', 'ftp', 'ftps', 's3'):
             ## FIXME: some warning or something?
             ## assertion error?
             return ''
